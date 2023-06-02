@@ -19,8 +19,8 @@
 %--------------------------------------------------------------------------
 function [I, Iqe,bias] = MIdrQE(RS,R)
 %Get the number of trials in both RS and R
-[nTrials,~] = size(R);
-[nTrialsPerS,~] = size(RS);
+[~,nTrials] = size(R);
+[~,nTrialsPerS,] = size(RS);
 %Fractions of data to use for QE estimate; randomly drawn so we repeat a
 %few times
 fractions = [1 .5 .5 .5 .5 .25 .25 .25 .25 .25 .25 .25 .25];
@@ -43,18 +43,18 @@ IperBin = pRS.*log2(pRS./pR); %Borst 1999.
 %Remove any infs. This is allowable from MacKay's "Information Theory,
 %Inference, and Learning Algorithms" where 0xlog(0/0) = 0 by convention.
 IperBin(isinf(IperBin)|isnan(IperBin)) = [];
-I = sum(IperBin);
+I = mi(R,RS);%sum(IperBin);
 %We have the direct estimate now. Now let's estimate the bias.
 for ck=1:length(useTrials)
     kR = randperm(nTrials);
     kRS = randperm(nTrialsPerS);
-    RSamp = R(kR(1:useTrials(ck)),:);
-    RSSamp = RS(kRS(1:useTrialsPerS(ck)));
+    RSamp = R(:,kR(1:useTrials(ck)));
+    RSSamp = RS(:,kRS(1:useTrialsPerS(ck)));
     pRSamp = estimatePMF(RSamp);
-    pRSSamp = esimatePMF(RSSamp);
+    pRSSamp = estimatePMF(RSSamp);
     IperBinSamp = pRSSamp.*log2(pRSSamp./pRSamp);
     IperBinSamp(isinf(IperBinSamp)|isnan(IperBinSamp)) = [];
-    partMIestimates(ck) = sum(IperBinSamp);
+    partMIestimates(ck) = mi(RSamp,RSSamp);%sum(IperBinSamp);
 end
 [p,S,mu] = polyfit(1./useTrialsPerS,partMIestimates,2);
 Iqe = polyval(p,0,S,mu);
