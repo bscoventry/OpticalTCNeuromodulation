@@ -1,7 +1,6 @@
 %load('JPSTHCell.mat')
 [numRows,~] = size(JPSTHCell);
 numiter = 1000;
-numbins = 200;
 for ck = 1:numRows
     curJP1 = JPSTHCell{ck,7};
     curJP2 = JPSTHCell{ck,8};
@@ -11,15 +10,15 @@ for ck = 1:numRows
     sigCounterS = 0;
     curXCorr = JPSTHCell{ck,3};
     curSCorr = JPSTHCell{ck,5};
-    for bc = 1:numiter
-        shufIDX1 = randperm(numbins);
-        shufIDX2 = randperm(numbins);
+    parfor bc = 1:numiter
+        shufIDX1 = randperm(200);
+        shufIDX2 = randperm(200);
         n2 = curJP2(:,shufIDX1);
         n2s = curSP2(:,shufIDX2);
         JPSTHShuff = jpsth_withCov(curJP1,n2,10);
         StimShuff =  jpsth_withCov(curSP1,n2s,10);
         corVal = max(JPSTHShuff.xcorrHist);
-        corSVal = max(StimShuff.stimCovariance);
+        corSVal = max(StimShuff.xcorrHistCov);
         if corVal>curXCorr
             sigCounterJ = sigCounterJ+1;
         end
