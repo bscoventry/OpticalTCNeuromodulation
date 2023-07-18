@@ -1,6 +1,6 @@
 %load('JPSTHCell.mat')
 [numRows,~] = size(JPSTHCell);
-numiter = 1000;
+numiter = 5000;
 for ck = 1:numRows
     curJP1 = JPSTHCell{ck,7};
     curJP2 = JPSTHCell{ck,8};
