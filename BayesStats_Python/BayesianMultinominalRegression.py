@@ -1,127 +1,74 @@
-#------------------------------------------------------------------------------------------------------------------------------------------------
-# Author: Brandon S Coventry             Date: 4/14/21           Refactor from previous INS Bayesian Linear Regression
-# Purpose: Bayesian partial-pooled linear regression models for INS studies
-# Revision History: N/A
-#------------------------------------------------------------------------------------------------------------------------------------------------
-import arviz as az
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import pymc3 as pm
-import theano
+import numpy as np
 import matplotlib.pyplot as plt
-import pdb
-from mpl_toolkits.mplot3d import Axes3D
-import json
-import pickle # python3
 import seaborn as sns
+import pymc as pm
+import aesara.tensor as tt
+import warnings
+import pdb
+warnings.filterwarnings("ignore", category=FutureWarning)
+import arviz as az
+from scipy.special import expit
+from matplotlib import gridspec
+from IPython.display import Image
+plt.style.use('seaborn-white')
+
+color = '#87ceeb'
 if __name__ == '__main__':
-    print(f"Running on PyMC3 v{pm.__version__}")
-    color = '#87ceeb'
-    az.style.use("arviz-darkgrid")
-    #data = pd.read_csv('https://github.com/pymc-devs/pymc3/raw/master/pymc3/examples/data/radon.csv')
+    f_dict = {'size':16}
+    df1 = pd.read_csv('INS_statTable_MKVII_UseForClasses.csv', dtype={'ClassVar':'category'})
+    #df1['Xenergy'] = np.log(df1['Xenergy']+0.1)
+    #df1['XISI'] = np.log(df1['XISI']+0.1)
+    X = df1[['Xenergy', 'XISI']]
+    meanx = X.mean().values
+    scalex = X.std().values
+    zX = ((X-meanx)/scalex).values
     
-    data = pd.read_csv("INS_statTable.csv")
-    classes = pd.read_csv('INS_statTable_MKIV_UseForClasses.csv')
-    data['classes'] = classes['Class']
-    data1 = data.loc[data['Is_Responsive'] == 1]
-    data1.reset_index(drop=True, inplace = True)
-    data2 = data1.loc[data1['Number_of_Pulses']>1]
-    data2.reset_index(drop=True, inplace = True)
+    # Number of categories
+    n_cat = df1.ClassVar.cat.categories.size
+    # Number of dimensions for X
+    zX_dim =zX.shape[1]
     
-    data3 = data2.loc[data2['Max_Z_Score']>0]
-    data3.reset_index(drop=True, inplace = True)
-    #data4 = data3.loc[data3['Max_Z_Score']>0]
-    #data4.reset_index(drop=True, inplace = True)
-    #data4 = data3.loc[data3['Max_Z_Score']<=20]
-    #data4.reset_index(drop=True, inplace = True)
-    data4 = data3.loc[data3['classes']!='NR']
-    data4.reset_index(drop=True, inplace = True)
-
-    data = data4
-
-    response_class = data["classes"]
-    classes = ['offset','OnSus+ inhib','OnSus','Sus+inhib','Sus','Onset','Onset+ inhib']
-    classVec = np.zeros((len(response_class),))
-    missedClass = []
-    for ck in range(len(response_class)):
-        curResp = response_class[ck]
-        if curResp == classes[0]:
-            classVec[ck] = 0
-        elif curResp == classes[1]:
-            classVec[ck] = 1
-        elif curResp == classes[2]:
-            classVec[ck] = 2
-        elif curResp == classes[3]:
-            classVec[ck] = 3
-        elif curResp == classes[4]:
-            classVec[ck] = 4
-        elif curResp == classes[5]:
-            classVec[ck] = 5
-        elif curResp == classes[6]:
-            classVec[ck] = 6
-        else:
-            missedClass.append(curResp)
-    #MaxZ = np.log(MaxZ+1)
-    
-    
-    # data.reset_index(inplace = True)
-    # data = data.loc[data['ISI'] < 50]
-    # data.reset_index(inplace = True)
-    # pdb.set_trace()
-    #data = data.iloc[1:5000,:]
-    # Model for Max firing Rate
-    RANDOM_SEED = 7
-    # animal_codes = np.unique(data.animal_code)
-    # animal_codes_map = np.arange(0,len(animal_codes))
-    # newCodes = np.zeros((len(data.animal_code)),dtype=int)
-    # for ck in range(len(data.animal_code)):
-    #     curCode = data.animal_code[ck]
-    #     newCode = np.where(curCode == animal_codes)
-    #     newCode = newCode[0][0]
-    #     newCodes[ck] = int(newCode)
-    # data.animal_code = newCodes
-    # animal_code_idx = data.animal_code.values
-    XDist = data.ISI.values
-    XDist = np.log(XDist+1)
-    XPW = data.Pulse_Width.values
-    Xenergy = data.Energy.values
-    lenData = len(Xenergy)
-    XenergyPerPulse = np.zeros((lenData,))
-    for ck in range(lenData):
+    with pm.Model() as model_softmax:
+        # priors for categories 2-4, excluding reference category 1 which is set to zero below.
+        zbeta0_ = pm.Normal('zbeta0_', mu=0, sigma=1, shape=n_cat-1)
+        zbeta_ = pm.Normal('zbeta_', mu=0, sigma = 1, shape=(zX_dim, n_cat-1))
         
-        XenergyPerPulse[ck] = Xenergy[ck]/XPW[ck]
-        if XenergyPerPulse[ck] < 0:
-            XenergyPerPulse[ck] = 0
-    XenergyPerPulse = np.log(XenergyPerPulse+1)
-    Xenergy = np.log(data.Energy.values+1)
-    
-    #Xenergy1 = data1.Energy.values
-    #Xenergy0 = data0.Energy.values
-    n_cat = len(classes)
-    X = [Xenergy,XDist]
-    zX_dim =np.shape(X)[1]
-    #plt.zlabel('Z_Score')
-    
-    
-    #Okay, let's create our model.
-    with pm.Model() as MultiNomClass:
-        beta = pm.Normal('beta', mu=0, sigma=1, shape=(2,n_cat))
-        beta2 = pm.Normal('beta2', mu=0, sigma=1, shape=(2,n_cat))
-        alpha = pm.Normal('alpha', mu=0, sigma=1, shape=n_cat)
-        mu = alpha + pm.math.dot(X, beta)
-        softMax = pm.Deterministic('softMax', theano.tensor.nnet.softmax(mu))
-        classPred = pm.Categorical('classPred', p=softMax, observed=classVec)
-    
-    with MultiNomClass:
-        if __name__ == '__main__':
-                step = pm.NUTS()
-                trace = pm.sample(5000, tune=5000, target_accept=0.95,chains = 4)
-    pm.traceplot(trace, var_names=["alpha"])
-    
-    pm.traceplot(trace, var_names=["beta1"])
+        # add prior values zero (intercept, predictors) for reference category 1.
+        zbeta0 = pm.Deterministic('zbeta0', tt.concatenate([[0], zbeta0_]))
+        zbeta = pm.Deterministic('zbeta', tt.concatenate([tt.zeros((2, 1)), zbeta_], axis=1))
 
-    pm.traceplot(trace, var_names=["beta2"])
+        mu = zbeta0 + pm.math.dot(zX, zbeta)
+        
+        # Theano softmax function
+        p = pm.Deterministic('p', tt.nnet.basic.softmax(mu))
+        
+        y = pm.Categorical('y', p=p, observed=df1.ClassVar.cat.codes.values)
 
+    pm.model_to_graphviz(model_softmax)
     pdb.set_trace()
-    az.to_netcdf(trace,filename='Multinom_Var1_Semilog.netcdf')
+    with model_softmax:
+        if __name__ == '__main__':
+            trace1 = pm.sample(5000, tune=5000, target_accept=0.995,chains = 4)
+    
+    az.plot_trace(trace1, ['zbeta0', 'zbeta'])
+    with model_softmax:
+        if __name__ == '__main__':
+            ppc = pm.sample_posterior_predictive(trace1, random_seed=7)
+    az.to_netcdf(trace1,filename='MultiNomModel_Var1_MKIII.netcdf')
+    az.to_netcdf(ppc,filename='MultiNomModel_Var1_ppc_MKIII.netcdf')
+    pdb.set_trace()
+    zbeta0 = trace1.posterior['zbeta0_']
+    zbeta = trace1.posterior['zbeta_']
+    
+    beta0 = zbeta0 - np.sum(zbeta*(np.tile(meanx, (n_cat,1))/np.tile(scalex, (n_cat,1))).T, axis=1)
+    beta = np.divide(zbeta, np.tile(scalex, (n_cat,1)).T)
+    estimates1 = np.insert(beta, 0, beta0, axis=1)
+    plt.figure(figsize=(15,15))
+    for outcome in df1.ClassVar.cat.categories:
+        plt.scatter(df1[df1.ClassVar == outcome].Xenergy, df1[df1.ClassVar == outcome].XISI, s=100, marker='${}$'.format(outcome))
+    plt.xlabel('$Energy$')
+    plt.ylabel('$ISI$')
+    
+    plt.gca().set_aspect('equal')
+    pdb.set_trace()
