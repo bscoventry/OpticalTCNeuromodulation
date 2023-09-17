@@ -1,4 +1,4 @@
-[rows,cols] = size(INSDataTable);
+rows = 8068;
 respCell = cell(1,rows);
 class = cell(1,rows);
 offsetTime = 1;
@@ -9,7 +9,7 @@ XISI = zeros(1,rows);
 XPulses = zeros(1,rows);
 respCounter = 0;
 psth = zeros(1,200);
-for ck = 1:rows
+for ck = 1:8068
     if INSDataTable{ck,24} == 1
     curResp = INSDataTable{ck,10};
     meanSpont = mean(curResp(1:39));
@@ -67,15 +67,16 @@ for jk = 1:rows
     end
 end
 INSClassTable = cell(1);
+INSBarsTable = cell(1);
 counter = 1;
 classCounts = [0,0,0,0,0,0,0];
 sepClass = zeros(1,1);
 sepPSTH = zeros(1,200);
 for pk = 1:rows
     if strcmp(class{pk},'NR') == 0
-        if XPulses(pk) > 1
+        %if XPulses(pk) > 1
         if classMod(pk) < 99
-            if XISI(pk) <= 25
+            %if XISI(pk) <= 25
             INSClassTable{counter,1} = XPulses(pk);
             INSClassTable{counter,2} = Xenergy(pk);
             INSClassTable{counter,3} = XISI(pk);
@@ -85,9 +86,9 @@ for pk = 1:rows
             classCounts(classMod(pk)+1) = classCounts(classMod(pk)+1) + 1;
             sepPSTH(counter,:) = psth(pk,:);
             counter = counter + 1;
-            end
+            %end
         end
-        end
+        %end
     end
 end
 nomFactorS = length(INSClassTable);
