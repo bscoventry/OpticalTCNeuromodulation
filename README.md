@@ -1,4 +1,4 @@
-# Optical Thalamocortical Neuromodulation
+# Characterization and closed-loop control of infrared thalamocortical stimulation produces spatially constrained single-unit responses
 Source code for Coventry et al Characterization and closed-loop control of infrared thalamocortical stimulation produces spatially constrained single-unit responses. This repository includes all source code for Neural Analysis in both Matlab and Python. https://academic.oup.com/pnasnexus/article/3/2/pgae082/7612543?searchresult=1
 
 # Use
